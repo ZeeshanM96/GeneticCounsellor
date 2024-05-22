@@ -1,0 +1,29 @@
+# Activate the virtual Env
+source venv/bin/activate
+
+# Install the dependencies
+pip install -r requirements.txt
+
+#This needs to installed only once
+python -m spacy download en_core_web_sm
+
+#if needed install below:
+pip install -U langchain-community
+
+# Run the injest file
+python ingest.py
+
+# Run the model script
+chainlit run model.py -w
+
+# if needed install Ctransformers package and run the model script again:
+pip install ctransformers
+
+# To check the usage of GPU
+nvidia-smi
+
+# To resolve port alrady in use issue, check the pids using that port
+lsof -i :8000
+
+# Stop the processes using the 8000 with the pid
+kill -9 <PID>

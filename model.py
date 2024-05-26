@@ -181,15 +181,12 @@ def qa_bot():
                                        model_kwargs={'device': 'cuda'})
     db = FAISS.load_local(DB_FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
     hf_llm = load_llm()
-    # title, script = generate_counselor_report(pdf_path, file_name)
     qa_prompt = set_custom_prompt(script)
     memory = ConversationBufferMemory(llm=hf_llm, max_token_limit=512, memory_key="chat_history", output_key="result")
     qa = retrieval_qa_chain(hf_llm, qa_prompt, db, memory)
-    return qa, memory
+    return qa, memory, db
 
 def final_result(query):
-    import pdb
-    pdb.set_trace()
     qa, memory = qa_bot()
     response = qa({'query': query})
     conversation_history = memory.chat_memory.messages
@@ -197,18 +194,20 @@ def final_result(query):
 
 @cl.on_chat_start
 async def start():
-    chain, memory = qa_bot()
+    chain, memory, retriever = qa_bot()
     msg = cl.Message(content="Getting your Genetic Counsellor ready!")
     await msg.send()
     msg.content = "Hi, " + script + "\nHow may I help you today with this information?"
     await msg.update()
     cl.user_session.set("chain", chain)
     cl.user_session.set("memory", memory)
+    cl.user_session.set("retriever", retriever)
 
 @cl.on_message
 async def main(message: cl.Message):
     chain = cl.user_session.get("chain")
     memory = cl.user_session.get("memory")
+    retriever = cl.user_session.get("retriever")
 
     if any(thank_word in message.content.lower() for thank_word in ["thank you", "thanks"]):
         await cl.Message(content="You're welcome! If you have any more questions or need further assistance, feel free to reach out.").send()
@@ -228,10 +227,11 @@ async def main(message: cl.Message):
             answer += "\nNo sources found"
         await cl.Message(content=answer).send()
         conversation_history = memory.chat_memory.messages
+        reference_path= "ReferenceReport/example.docx.pdf"
+        reference_text = read_file(reference_path)
         conversation = []
         predicted_responses = []
         for msg in conversation_history:
-            # Replace with actual attribute access based on message structure
             if hasattr(msg, 'role') and hasattr(msg, 'content'):
                 conversation.append(f"{msg.role.capitalize()}: {msg.content}")
             else:
@@ -240,22 +240,19 @@ async def main(message: cl.Message):
                 elif isinstance(msg, AIMessage):
                     conversation.append(f"Counselor: {msg.content}")
                     predicted_responses.append(msg.content)
-            perplexity = calculate_conversational_perplexity(model, tokenizer, conversation)
-            conversation_id = f"conv_{int(time.time())}"
-            log_perplexity(modalname, conversation_id, perplexity)
-            reference_path= "ReferenceReport/example.docx.pdf"
-            reference_text = read_file(reference_path)
-            rouge_1_scores = [calculate_rouge_1(predicted, reference_text) for predicted in predicted_responses]
-            average_rouge_1 = sum(rouge_1_scores) / len(rouge_1_scores) if rouge_1_scores else 0
-            log_rouge(modalname, conversation_id, rouge_1_scores, average_rouge_1)
+
+        perplexity = calculate_conversational_perplexity(model, tokenizer, conversation, reference_text)
+        conversation_id = f"conv_{int(time.time())}"
+        log_perplexity(modalname, conversation_id, perplexity)
+        rouge_1_scores = [calculate_rouge_1(predicted, reference_text) for predicted in predicted_responses]
+        average_rouge_1 = sum(rouge_1_scores) / len(rouge_1_scores) if rouge_1_scores else 0
+        log_rouge(modalname, conversation_id, rouge_1_scores, average_rouge_1)
             
-                    # Calculate Cosine and Jaccard similarities
         cosine_similarities = [calculate_cosine_similarity(predicted, reference_text) for predicted in predicted_responses]
         average_cosine = sum(cosine_similarities) / len(cosine_similarities) if cosine_similarities else 0
         jaccard_similarities = [calculate_jaccard_similarity(predicted, reference_text) for predicted in predicted_responses]
         average_jaccard = sum(jaccard_similarities) / len(jaccard_similarities) if jaccard_similarities else 0
 
-        # Log similarities
         log_similarities(modalname, conversation_id, cosine_similarities, average_cosine, jaccard_similarities, average_jaccard)
 
         print(f"Cosine Similarities: {cosine_similarities}")

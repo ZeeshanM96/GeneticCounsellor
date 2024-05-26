@@ -4,8 +4,19 @@ source venv/bin/activate
 # Install the dependencies
 pip install -r requirements.txt
 
-#This needs to installed only once
+# Install these dependencies seperately
+pip install pypdf
+pip install spacy
 python -m spacy download en_core_web_sm
+pip install sentence-transformers
+pip install faiss-gpu
+pip install chainlit
+pip install pandas
+pip install PyMuPDF
+pip install accelerate
+pip install wikipedia
+pip install rouge-score
+
 
 #if needed install below:
 pip install -U langchain-community

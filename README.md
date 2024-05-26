@@ -50,6 +50,21 @@ Please follow the instructions to run the application.
 #### Install the dependencies
 ```pip install -r requirements.txt```
 
+#### Install these dependencies separately
+```
+pip install pypdf
+pip install spacy
+python -m spacy download en_core_web_sm
+pip install sentence-transformers
+pip install faiss-gpu
+pip install chainlit
+pip install pandas
+pip install PyMuPDF
+pip install accelerate
+pip install wikipedia
+pip install rouge-score
+```
+
 #### This needs to be installed only once
 ```python -m spacy download en_core_web_sm```
 
